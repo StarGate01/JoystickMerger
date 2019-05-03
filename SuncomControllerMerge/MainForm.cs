@@ -27,11 +27,11 @@ namespace SuncomControllerMerge
         }
         public Label LblJoystickStat
         {
-            get { return lblJoystickStat; }
+            get { return lblWheelStat; }
         }
         public Label LblThrottleStat
         {
-            get { return lblThrottleStat; }
+            get { return lblHandbrakeStat; }
         }
 
         protected override void OnLoad(EventArgs e)
@@ -53,7 +53,7 @@ namespace SuncomControllerMerge
                 {
                     pollTimer.Stop();
                     if (WindowState == FormWindowState.Minimized)
-                        notifyIcon1.ShowBalloonTip(3000, "SuncomControllerMerge", "One of the Suncom controllers was disconnected", ToolTipIcon.None);
+                        notifyIcon1.ShowBalloonTip(3000, "CHRZControllerMerge", "One of the controllers was disconnected", ToolTipIcon.None);
                     pollTimer.Interval = 500;
                     pollTimer.Start();
                 }
@@ -66,7 +66,7 @@ namespace SuncomControllerMerge
                 if (WindowState != FormWindowState.Minimized)
                     WindowState = FormWindowState.Minimized;
                 else
-                    notifyIcon1.ShowBalloonTip(3000, "SuncomControllerMerge", "SuncomControllerMerge is back on-line", ToolTipIcon.None);
+                    notifyIcon1.ShowBalloonTip(3000, "CHRZControllerMerge", "CHRZControllerMerge is back on-line", ToolTipIcon.None);
                 pollTimer.Start();
             }
         }

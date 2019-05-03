@@ -12,8 +12,8 @@ namespace SuncomControllerMerge
 {
     public class GameDevPoller
     {
-        Joystick joystickDevice;
-        Joystick throttleDevice;
+        Joystick wheelDevice;
+        Joystick handbrakeDevice;
         MainForm mainForm;
         vJoy joystick;
         vJoy.JoystickState iReport;
@@ -61,13 +61,12 @@ namespace SuncomControllerMerge
             // Make sure all needed axes and buttons are supported
             bool AxisX = joystick.GetVJDAxisExist(id, HID_USAGES.HID_USAGE_X);
             bool AxisY = joystick.GetVJDAxisExist(id, HID_USAGES.HID_USAGE_Y);
-            bool AxisRX = joystick.GetVJDAxisExist(id, HID_USAGES.HID_USAGE_RX);
+            bool AxisZ = joystick.GetVJDAxisExist(id, HID_USAGES.HID_USAGE_Z);
             bool AxisRZ = joystick.GetVJDAxisExist(id, HID_USAGES.HID_USAGE_RZ);
             int nButtons = joystick.GetVJDButtonNumber(id);
-            int ContPovNumber = joystick.GetVJDContPovNumber(id);
-            if (!AxisX || !AxisY || !AxisRX || !AxisRZ || nButtons < 28 || ContPovNumber < 3)
+            if (!AxisX || !AxisY || !AxisZ || !AxisRZ || nButtons < 8)
             {
-                MessageBox.Show("vJoy Device is not configured correctly. Must have X,Y,Rx,Ry analog axis, 28 buttons and 3 Analog POVs. Cannot continue\n", "Error");
+                MessageBox.Show("vJoy Device is not configured correctly. Must have X, Y, Z, Rz analog axis and 8 buttons. Cannot continue\n", "Error");
                 return;
             }
 
@@ -86,8 +85,8 @@ namespace SuncomControllerMerge
 
         void ClearDevices()
         {
-            joystickDevice = null;
-            throttleDevice = null;
+            wheelDevice = null;
+            handbrakeDevice = null;
             mainForm.LblThrottleStat.Text = "Waiting...";
             mainForm.LblJoystickStat.Text = "Waiting...";
         }
@@ -105,17 +104,17 @@ namespace SuncomControllerMerge
                 // Move to the first device
                 //if (DetectDevice(deviceInstance, "vjoy", ref vjoyDevice, mainForm.LblVjoyStat))
                     //continue;
-                if (DetectDevice(deviceInstance, "suncom f15 talon", ref joystickDevice, mainForm.LblJoystickStat))
+                if (DetectDevice(deviceInstance, "SideWinder Force Feedback Wheel", ref wheelDevice, mainForm.LblJoystickStat))
                     continue;
-                if (DetectDevice(deviceInstance, "suncom sfs throttle", ref throttleDevice, mainForm.LblThrottleStat))
+                if (DetectDevice(deviceInstance, "Handbrake", ref handbrakeDevice, mainForm.LblThrottleStat))
                     continue;
             }
-            return (joystickDevice != null && throttleDevice != null && vjoyEnabled);
+            return (wheelDevice != null && handbrakeDevice != null && vjoyEnabled);
         }
 
         bool DetectDevice(DeviceInstance deviceInstance, string name, ref Joystick dev, Label lbl)
         {
-            if (deviceInstance.ProductName.ToLower().StartsWith(name))
+            if (deviceInstance.ProductName.ToLower().StartsWith(name.ToLower()))
             {
                 // create a device from this controller.
                 dev = new Joystick(input, deviceInstance.InstanceGuid);
@@ -133,47 +132,30 @@ namespace SuncomControllerMerge
         public bool Poll()
         {
             JoystickState state;
-            if ((joystickDevice == null) || (throttleDevice == null))
+            if ((wheelDevice == null) || (handbrakeDevice == null))
                 return false;
             try
             {
                 // poll the joystick
-                throttleDevice.Poll();
+                handbrakeDevice.Poll();
                 // update the joystick state field
-                state = throttleDevice.GetCurrentState();
+                state = handbrakeDevice.GetCurrentState();
                 iReport.bDevice = (byte)id;
-                iReport.AxisZRot = (int)((double)state.X * axisScale);
-                iReport.AxisXRot = (int)((double)state.Y * axisScale);
+                iReport.AxisZ = (int)((double)state.X * axisScale);
 
-
-                // Set throttle buttons one by one
-                bool [] buttons = state.Buttons;
-                iReport.Buttons = (uint)0;
-                int i;
-                for (i = 0; i < buttons.Length; i++)
-                    if (buttons[i])
-                        iReport.Buttons |= (uint)1 << (i + 12);
-
-                // throttle povs
-                int[] povs = state.PointOfViewControllers;
-                iReport.bHatsEx1 = (uint)povs[0];
-                iReport.bHatsEx2 = (uint)povs[1];
-
-                joystickDevice.Poll();
+                wheelDevice.Poll();
                 // update the joystick state field
-                state = joystickDevice.GetCurrentState();
+                state = wheelDevice.GetCurrentState();
                 iReport.AxisX = (int)((double)state.X * axisScale);
                 iReport.AxisY = (int)((double)state.Y * axisScale);
+                iReport.AxisZRot = (int)((double)state.RotationZ * axisScale);
 
                 // Set joystick buttons one by one
-                buttons = state.Buttons;
-                for (i = 0; i < buttons.Length; i++)
-                    if (buttons[i])
-                        iReport.Buttons |= (uint)1 << i;
+                bool[] buttons = state.Buttons;
+                for (int i = 0; i < buttons.Length; i++)
+                    if (buttons[i]) iReport.Buttons |= (uint)1 << i;
 
                 // joystick povs
-                povs = state.PointOfViewControllers;
-                iReport.bHats = (uint)povs[0]; // Neutral state
                 /*** Feed the driver with the position packet - is fails then wait for input then try to re-acquire device ***/
                 if (!joystick.UpdateVJD(id, ref iReport))
                 {
